@@ -139,13 +139,32 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         } else {
             Toast.makeText(this, R.string.connection_error_message, Toast.LENGTH_SHORT).show();
         }
+
+        new SamLocationRequestService(MapsActivity.this).executeService(new SamLocationRequestService.SamLocationListener() {
+            @Override
+            public void onLocationUpdate(Location location, Address address) {
+                map.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(location.getLatitude(), location.getLongitude()), 16));
+            }
+        });
     }
 
     @Override
     public boolean onMarkerClick(Marker marker) {
         Toast.makeText(this, marker.getTitle(), Toast.LENGTH_SHORT).show();
 
-        Navigator.with(this).build().goTo(DetailActivity.class).animation().commit();
+        Place markerPlace = null;
+
+        for (Place place : placeArrayList) {
+            if (place.getPlaceId().equals(marker.getId())) {
+                markerPlace = place;
+                break;
+            }
+        }
+
+        Bundle bundle = new Bundle();
+        bundle.putSerializable("place", markerPlace);
+
+        Navigator.with(this).build().goTo(DetailActivity.class, bundle).animation().commit();
 
         return false;
     }
@@ -181,13 +200,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         @Override
         protected void onPostExecute(ArrayList<Place> places) {
             super.onPostExecute(places);
-
-            new SamLocationRequestService(MapsActivity.this).executeService(new SamLocationRequestService.SamLocationListener() {
-                @Override
-                public void onLocationUpdate(Location location, Address address) {
-                    map.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(location.getLatitude(), location.getLongitude()), 16));
-                }
-            });
 
             if (places == null || places.size() == 0) {
                 Toast.makeText(getApplicationContext(), "", Toast.LENGTH_SHORT).show();

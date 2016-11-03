@@ -1,10 +1,12 @@
 package com.unimagdalena.android.app.smtravelvoice;
 
+import java.io.Serializable;
+
 /**
  * Created by Alberto on 03-Nov-16.
  */
 
-public class Coordinate {
+public class Coordinate implements Serializable {
 
     private double latitude;
     private double longitude;

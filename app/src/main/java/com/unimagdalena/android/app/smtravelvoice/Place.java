@@ -1,13 +1,14 @@
 package com.unimagdalena.android.app.smtravelvoice;
 
 
+import java.io.Serializable;
 import java.util.ArrayList;
 
 /**
  * Created by Alberto on 03-Nov-16.
  */
 
-public class Place {
+public class Place implements Serializable {
 
     private String placeId;
     private String name;
