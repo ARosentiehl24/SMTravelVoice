@@ -155,7 +155,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         Place markerPlace = null;
 
         for (Place place : placeArrayList) {
-            if (place.getPlaceId().equals(marker.getId())) {
+            if (place.getName().equals(marker.getTitle())) {
                 markerPlace = place;
                 break;
             }

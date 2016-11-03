@@ -50,6 +50,7 @@ dependencies {
     compile 'com.google.android.gms:play-services:9.8.0'
     compile 'com.google.android.gms:play-services-maps:9.8.0'
     compile 'com.eightbitlab:blurview:1.2.0'
+    compile 'com.github.bumptech.glide:glide:3.7.0'
     compile 'com.github.andrewlord1990:materialandroid:0.4.0'
     compile 'com.github.kingsammalik:SamLocationAndGeocoding:1.1.0'
     compile 'com.github.mmin18:realtimeblurview:1.0.4'
