@@ -1,8 +1,10 @@
 package com.unimagdalena.android.app.smtravelvoice;
 
 import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -14,6 +16,9 @@ import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.os.PersistableBundle;
 import android.provider.Settings;
+import android.speech.RecognizerIntent;
+import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
@@ -52,15 +57,18 @@ import org.fingerlinks.mobile.android.navigator.Navigator;
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Locale;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
 
-import static com.unimagdalena.android.app.smtravelvoice.SMTravelVoicApp.GEOFENCES_ADDED_KEY;
-import static com.unimagdalena.android.app.smtravelvoice.SMTravelVoicApp.GEOFENCE_EXPIRATION_IN_MILLISECONDS;
-import static com.unimagdalena.android.app.smtravelvoice.SMTravelVoicApp.GEOFENCE_RADIUS_IN_METERS;
+import static com.unimagdalena.android.app.smtravelvoice.SMTravelVoice.ACTION_RECOGNIZE_SPEECH_RC;
+import static com.unimagdalena.android.app.smtravelvoice.SMTravelVoice.GEOFENCES_ADDED_KEY;
+import static com.unimagdalena.android.app.smtravelvoice.SMTravelVoice.GEOFENCE_EXPIRATION_IN_MILLISECONDS;
+import static com.unimagdalena.android.app.smtravelvoice.SMTravelVoice.GEOFENCE_TRANSITION_ENTER;
+import static com.unimagdalena.android.app.smtravelvoice.SMTravelVoice.GEOFENCE_TRANSITION_EXIT;
 
-public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, GoogleMap.OnMarkerClickListener, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, ResultCallback<Status>, LocationListener {
+public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, GoogleMap.OnMarkerClickListener, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, ResultCallback<Status>, LocationListener, TextToSpeech.OnInitListener {
 
     @BindView(R.id.toolbar)
     Toolbar toolbar;
@@ -89,7 +97,16 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private ArrayList<Place> placeArrayList;
     private AppPermissions appPermissions;
+
+    private Boolean mainDescriptionReadied = false;
+    private Boolean descriptionsReadied = false;
+
+    private GeofenceTransitionReceiver geofenceTransitionReceiver;
     private GoogleMap map;
+    private Integer position = 0;
+    private Place place;
+    private TextToSpeech mainVoice;
+    private TextToSpeech messageVoice;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -105,18 +122,18 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         settingsManager();
         updateValuesFromBundle(savedInstanceState);
 
-        Bundle bundle = getIntent().getExtras();
+        placeArrayList = SMTravelVoice.getInstance().getPlaces();
 
-        placeArrayList = (ArrayList<Place>) bundle.getSerializable("places");
-
-        if (placeArrayList == null) {
-            Log.e(getClass().getSimpleName(), placeArrayList.get(0).getName());
-        } else {
+        try {
             for (Place place : placeArrayList) {
+                PreferencesManager.putObject(place.getName(), place);
+
                 mGeofenceList.add(geofencesBuilder(place));
             }
 
             buildGoogleApiClient();
+        } catch (NullPointerException e) {
+            Log.e(getClass().getSimpleName(), e.getMessage());
         }
 
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
@@ -153,12 +170,58 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     @Override
     protected void onDestroy() {
+        mainVoice.stop();
+        mainVoice.shutdown();
+
+        messageVoice.stop();
+        messageVoice.shutdown();
+
+        unregisterReceiver(geofenceTransitionReceiver);
+
         super.onDestroy();
     }
 
     @Override
     public void onBackPressed() {
         Navigator.with(this).utils().finishWithAnimation(android.R.anim.fade_in, android.R.anim.fade_out);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode == RESULT_OK) {
+            switch (requestCode) {
+                case ACTION_RECOGNIZE_SPEECH_RC:
+                    if (data != null) {
+                        ArrayList<String> extra = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+                        String text = extra.get(0);
+
+                        Toast.makeText(this, text, Toast.LENGTH_SHORT).show();
+
+                        messageVoice.speak("Ok", TextToSpeech.QUEUE_FLUSH, null, null);
+
+                        if (text.toLowerCase().contains("sí".toLowerCase()) || text.toLowerCase().equalsIgnoreCase("sí".toLowerCase())) {
+                            if (!mainDescriptionReadied) {
+                                mainDescriptionReadied = true;
+
+                                speak(mainVoice, place.getMainDescription() + ", ¿quieres saber mas al respecto?");
+                            } else {
+                                if (position != place.getDescriptions().size() - 1) {
+                                    speak(mainVoice, place.getDescriptions().get(position).getMessage() + ", ¿quieres saber mas al respecto?");
+                                } else {
+                                    speak(mainVoice, place.getDescriptions().get(position).getMessage());
+                                }
+                            }
+                        } else if (text.toLowerCase().contains("no".toLowerCase()) || text.toLowerCase().equalsIgnoreCase("no".toLowerCase())) {
+                            mainDescriptionReadied = false;
+                            descriptionsReadied = false;
+
+                            position = 0;
+                        }
+                    }
+                    break;
+            }
+        }
     }
 
     @Override
@@ -211,7 +274,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             for (Place place : placeArrayList) {
                 map.addCircle(new CircleOptions()
                         .center(new LatLng(place.getCoordinates().getLatitude(), place.getCoordinates().getLongitude()))
-                        .radius(GEOFENCE_RADIUS_IN_METERS)
+                        .radius(place.getRatio())
                         .strokeColor(Color.TRANSPARENT)
                         .strokeWidth(2.5f)
                         .fillColor(ContextCompat.getColor(MapsActivity.this, R.color.transparent_black_percent_25)));
@@ -307,6 +370,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     public void settingsManager() {
+        //hashMap.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "Done");
+
         mRequestingLocationUpdates = false;
         mLastUpdateTime = "";
 
@@ -315,6 +380,48 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         mGeofencePendingIntent = null;
         mGeofencesAdded = PreferencesManager.getBoolean(GEOFENCES_ADDED_KEY, false);
+
+        mainVoice = new TextToSpeech(this, this);
+        mainVoice.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+            @Override
+            public void onStart(String s) {
+                //Toast.makeText(getApplicationContext(), "onStart " + s, Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onDone(String s) {
+                if (mainDescriptionReadied) {
+                    position++;
+                }
+
+                if (position < place.getDescriptions().size()) {
+                    listen();
+                }
+
+                if (position == place.getDescriptions().size()) {
+                    descriptionsReadied = false;
+
+                    messageVoice.speak("Esta es toda la información que tengo con respecto a " + place.getName(), TextToSpeech.QUEUE_FLUSH, null, null);
+                }
+
+                //Toast.makeText(getApplicationContext(), "onDone " + s, Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onError(String s) {
+                //Toast.makeText(getApplicationContext(), "onError " + s, Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        messageVoice = new TextToSpeech(this, this);
+
+        geofenceTransitionReceiver = new GeofenceTransitionReceiver();
+
+        IntentFilter transitionFilter = new IntentFilter();
+        transitionFilter.addAction(GEOFENCE_TRANSITION_ENTER);
+        transitionFilter.addAction(GEOFENCE_TRANSITION_EXIT);
+
+        registerReceiver(geofenceTransitionReceiver, transitionFilter);
     }
 
     public void updateValuesFromBundle(Bundle savedInstanceState) {
@@ -366,7 +473,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     public Geofence geofencesBuilder(Place place) {
         return new Geofence.Builder()
                 .setRequestId((place.getName()))
-                .setCircularRegion(place.getCoordinates().getLatitude(), place.getCoordinates().getLongitude(), GEOFENCE_RADIUS_IN_METERS)
+                .setCircularRegion(place.getCoordinates().getLatitude(), place.getCoordinates().getLongitude(), place.getRatio())
                 .setExpirationDuration(GEOFENCE_EXPIRATION_IN_MILLISECONDS)
                 .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_EXIT)
                 .build();
@@ -419,17 +526,65 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     public void updateUI() {
-        if (mCurrentLocation != null) {
-            double latitude = mCurrentLocation.getLatitude();
-            double longitude = mCurrentLocation.getLongitude();
+        if (PreferencesManager.getBoolean(getString(R.string.update_ui), false)) {
+            if (mCurrentLocation != null) {
+                double latitude = mCurrentLocation.getLatitude();
+                double longitude = mCurrentLocation.getLongitude();
 
-            LatLng latLng = new LatLng(latitude, longitude);
-            map.moveCamera(CameraUpdateFactory.newLatLng(latLng));
-            map.animateCamera(CameraUpdateFactory.zoomTo(16));
+                LatLng latLng = new LatLng(latitude, longitude);
+                map.moveCamera(CameraUpdateFactory.newLatLng(latLng));
+                map.animateCamera(CameraUpdateFactory.zoomTo(16));
+            }
         }
     }
 
     public void logSecurityException(SecurityException securityException) {
         Log.e(TAG, "Invalid location permission. " + "You need to use ACCESS_FINE_LOCATION with geofences", securityException);
+    }
+
+    public void listen() {
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, new Locale("es", "US"));
+        intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Say something");
+
+        startActivityForResult(intent, ACTION_RECOGNIZE_SPEECH_RC);
+    }
+
+    public void speak(TextToSpeech voice, String text) {
+        voice.speak(text, TextToSpeech.QUEUE_FLUSH, null, place.getPlaceId());
+    }
+
+    @Override
+    public void onInit(int i) {
+        if (i == TextToSpeech.SUCCESS) {
+            int mainResult = mainVoice.setLanguage(new Locale("es", "US"));
+            int descriptionResult = mainVoice.setLanguage(new Locale("es", "US"));
+
+            if (mainResult == TextToSpeech.LANG_MISSING_DATA || mainResult == TextToSpeech.LANG_NOT_SUPPORTED) {
+                Log.e("TTS", "This Language is not supported");
+            }
+        } else {
+            Log.e("TTS", "Initialization Failed!");
+        }
+    }
+
+    class GeofenceTransitionReceiver extends BroadcastReceiver {
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Bundle bundle = intent.getExtras();
+
+            place = (Place) bundle.getSerializable("place");
+
+            if (intent.getAction().equals(GEOFENCE_TRANSITION_ENTER)) {
+                speak(mainVoice, "Has entrado ha " + place.getName() + ", ¿quieres saber mas al respecto?");
+            } else {
+                speak(mainVoice, "Has salido de " + place.getName() + ", espero que vuelvas pronto.");
+                mainDescriptionReadied = false;
+                descriptionsReadied = false;
+                position = 0;
+            }
+        }
     }
 }

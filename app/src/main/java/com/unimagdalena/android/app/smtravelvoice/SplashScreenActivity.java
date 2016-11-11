@@ -108,10 +108,9 @@ public class SplashScreenActivity extends AppCompatActivity {
                 new Handler().postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        Bundle bundle = new Bundle();
-                        bundle.putSerializable("places", places);
+                        SMTravelVoice.getInstance().setPlaces(places);
 
-                        Navigator.with(SplashScreenActivity.this).build().goTo(MapsActivity.class, bundle).animation(android.R.anim.fade_in, android.R.anim.fade_out).commit();
+                        Navigator.with(SplashScreenActivity.this).build().goTo(MapsActivity.class).animation(android.R.anim.fade_in, android.R.anim.fade_out).commit();
                         finish();
                     }
                 }, 2500);

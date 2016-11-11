@@ -13,15 +13,17 @@ public class Place implements Serializable {
     private String placeId;
     private String name;
     private Coordinate coordinates;
+    private Float ratio;
     private String webPage;
     private ArrayList<Photo> photos;
     private String mainDescription;
     private ArrayList<Description> descriptions;
 
-    public Place(String placeId, String name, Coordinate coordinates, String webPage, ArrayList<Photo> photos, String mainDescription, ArrayList<Description> descriptions) {
+    public Place(String placeId, String name, Coordinate coordinates, Float ratio, String webPage, ArrayList<Photo> photos, String mainDescription, ArrayList<Description> descriptions) {
         this.placeId = placeId;
         this.name = name;
         this.coordinates = coordinates;
+        this.ratio = ratio;
         this.webPage = webPage;
         this.photos = photos;
         this.mainDescription = mainDescription;
@@ -50,6 +52,14 @@ public class Place implements Serializable {
 
     public void setCoordinates(Coordinate coordinates) {
         this.coordinates = coordinates;
+    }
+
+    public Float getRatio() {
+        return ratio;
+    }
+
+    public void setRatio(Float ratio) {
+        this.ratio = ratio;
     }
 
     public String getWebPage() {

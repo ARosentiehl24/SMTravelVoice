@@ -30,6 +30,7 @@
         android:xlargeScreens="true" />
 
     <application
+        android:name=".SMTravelVoice"
         android:allowBackup="true"
         android:fullBackupContent="true"
         android:icon="@mipmap/ic_launcher"

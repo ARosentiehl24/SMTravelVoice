@@ -7,8 +7,18 @@ import com.shawnlin.preferencesmanager.PreferencesManager;
 import com.thefinestartist.Base;
 import com.zhy.autolayout.config.AutoLayoutConifg;
 
+import java.util.ArrayList;
 
-public class SMTravelVoicApp extends Application {
+/**
+ * Created by Alberto on 10-Nov-16.
+ */
+public class SMTravelVoice extends Application {
+
+    private static SMTravelVoice ourInstance;
+
+    public static SMTravelVoice getInstance() {
+        return ourInstance;
+    }
 
     public static String PACKAGE_NAME;
 
@@ -29,15 +39,25 @@ public class SMTravelVoicApp extends Application {
 
     public static final float GEOFENCE_RADIUS_IN_METERS = 500; // 1 mile, 1.6 km
 
+    public static final int ACTION_RECOGNIZE_SPEECH_RC = 100;
+
+    public static String GEOFENCE_TRANSITION_ENTER;
+
+    public static String GEOFENCE_TRANSITION_EXIT;
+
+    private ArrayList<Place> places;
     private PreferencesManager preferencesManager;
 
     @Override
     public void onCreate() {
         super.onCreate();
 
+        ourInstance = this;
+
         AutoLayoutConifg.getInstance().useDeviceSize();
         Base.initialize(this);
 
+        places = new ArrayList<>();
         preferencesManager = new PreferencesManager(this);
 
         PACKAGE_NAME = getPackageName().toUpperCase();
@@ -46,6 +66,10 @@ public class SMTravelVoicApp extends Application {
 
         GEOFENCES_ADDED_KEY = PACKAGE_NAME + ".GEOFENCES_ADDED_KEY";
 
+        GEOFENCE_TRANSITION_ENTER = PACKAGE_NAME + ".GEOFENCE_TRANSITION_ENTER";
+
+        GEOFENCE_TRANSITION_EXIT = PACKAGE_NAME + ".GEOFENCE_TRANSITION_EXIT";
+
         setPreferencesManager(SETTINGS_PREFERENCES);
     }
 
@@ -53,5 +77,30 @@ public class SMTravelVoicApp extends Application {
         preferencesManager.setName(name);
         preferencesManager.setMode(Context.MODE_PRIVATE);
         preferencesManager.init();
+    }
+
+    public ArrayList<Place> getPlaces() {
+        return places;
+    }
+
+    public void setPlaces(ArrayList<Place> places) {
+        this.places = places;
+    }
+
+    public void addPlace(Place place) {
+        places.add(place);
+    }
+
+    public Place getPlaceById(String id) {
+        Place place = null;
+
+        for (Place search : places) {
+            if (search.getName().equals(id)) {
+                place = search;
+                break;
+            }
+        }
+
+        return place;
     }
 }
