@@ -210,6 +210,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                                     speak(mainVoice, place.getDescriptions().get(position).getMessage() + ", ¿quieres saber mas al respecto?");
                                 } else {
                                     speak(mainVoice, place.getDescriptions().get(position).getMessage());
+
+                                    position = 0;
                                 }
                             }
                         } else if (text.toLowerCase().contains("no".toLowerCase()) || text.toLowerCase().equalsIgnoreCase("no".toLowerCase())) {
