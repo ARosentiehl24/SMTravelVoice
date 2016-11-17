@@ -282,7 +282,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                         .fillColor(ContextCompat.getColor(MapsActivity.this, R.color.transparent_black_percent_25)));
                 map.addMarker(new MarkerOptions()
                         .position(new LatLng(place.getCoordinates().getLatitude(), place.getCoordinates().getLongitude()))
-                        .title(place.getName()));
+                        .title(place.getName())
+                        .snippet(place.getDistance()));
             }
 
             map.setOnMarkerClickListener(MapsActivity.this);

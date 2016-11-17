@@ -1,6 +1,8 @@
 package com.unimagdalena.android.app.smtravelvoice;
 
 import android.content.pm.PackageManager;
+import android.location.Address;
+import android.location.Location;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
@@ -9,6 +11,8 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.entire.sammalik.samlocationandgeocoding.SamLocationRequestService;
+import com.google.android.gms.maps.model.LatLng;
 import com.mukesh.permissions.AppPermissions;
 
 import org.fingerlinks.mobile.android.navigator.Navigator;
@@ -19,6 +23,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 
 import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
@@ -70,6 +75,31 @@ public class SplashScreenActivity extends AppCompatActivity {
         }
     }
 
+    public double CalculationByDistance(LatLng StartP, LatLng EndP) {
+        int Radius = 6371;// radius of earth in Km
+        double lat1 = StartP.latitude;
+        double lat2 = EndP.latitude;
+        double lon1 = StartP.longitude;
+        double lon2 = EndP.longitude;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1))
+                * Math.cos(Math.toRadians(lat2)) * Math.sin(dLon / 2)
+                * Math.sin(dLon / 2);
+        double c = 2 * Math.asin(Math.sqrt(a));
+        double valueResult = Radius * c;
+        double km = valueResult / 1;
+        DecimalFormat newFormat = new DecimalFormat("####");
+        int kmInDec = Integer.valueOf(newFormat.format(km));
+        double meter = valueResult % 1000;
+        int meterInDec = Integer.valueOf(newFormat.format(meter));
+        Log.i("Radius Value", "" + valueResult + "   KM  " + kmInDec
+                + " Meter   " + meterInDec);
+
+        return Radius * c;
+    }
+
     class LoadMarkersWithJsonTask extends AsyncTask<URL, String, ArrayList<Place>> {
 
         @Override
@@ -108,13 +138,29 @@ public class SplashScreenActivity extends AppCompatActivity {
                 new Handler().postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        SMTravelVoice.getInstance().setPlaces(places);
+                        new SamLocationRequestService(SplashScreenActivity.this).executeService(new SamLocationRequestService.SamLocationListener() {
+                            @Override
+                            public void onLocationUpdate(Location location, Address address) {
 
-                        Navigator.with(SplashScreenActivity.this).build().goTo(MapsActivity.class).animation(android.R.anim.fade_in, android.R.anim.fade_out).commit();
-                        finish();
+                                for (Place place : places) {
+                                    place.setDistance(String.valueOf(roundToDecimals(CalculationByDistance(new LatLng(location.getLatitude(), location.getLongitude()), new LatLng(place.getCoordinates().getLatitude(), place.getCoordinates().getLongitude())), 2))+ " Kilómetros");
+                                }
+
+                                SMTravelVoice.getInstance().setPlaces(places);
+
+                                Navigator.with(SplashScreenActivity.this).build().goTo(MapsActivity.class).animation(android.R.anim.fade_in, android.R.anim.fade_out).commit();
+                                finish();
+                            }
+                        });
                     }
                 }, 2500);
             }
+        }
+
+        public double roundToDecimals(double d, int c)
+        {
+            int temp = (int)(d * Math.pow(10 , c));
+            return ((double)temp)/Math.pow(10 , c);
         }
     }
 }

@@ -18,6 +18,7 @@ public class Place implements Serializable {
     private ArrayList<Photo> photos;
     private String mainDescription;
     private ArrayList<Description> descriptions;
+    private String distance;
 
     public Place(String placeId, String name, Coordinate coordinates, Float ratio, String webPage, ArrayList<Photo> photos, String mainDescription, ArrayList<Description> descriptions) {
         this.placeId = placeId;
@@ -92,5 +93,13 @@ public class Place implements Serializable {
 
     public void setDescriptions(ArrayList<Description> descriptions) {
         this.descriptions = descriptions;
+    }
+
+    public String getDistance() {
+        return distance;
+    }
+
+    public void setDistance(String distance) {
+        this.distance = distance;
     }
 }

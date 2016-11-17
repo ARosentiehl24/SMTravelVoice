@@ -50,6 +50,7 @@ public class DetailActivity extends AppCompatActivity {
 
         assert place != null;
         getSupportActionBar().setTitle(place.getName());
+        getSupportActionBar().setSubtitle(place.getDistance());
 
         if (place.getPhotos().size() > 1) {
             photos.setAutoStart(true);
@@ -94,7 +95,7 @@ public class DetailActivity extends AppCompatActivity {
                         Log.e("TTS", "This Language is not supported");
                     }
 
-                    textToSpeech.speak(place.getName(), TextToSpeech.QUEUE_FLUSH, null, null);
+                    textToSpeech.speak(place.getName() + " se encuentra actualmente a " + place.getDistance(), TextToSpeech.QUEUE_FLUSH, null, null);
                 } else {
                     Log.e("TTS", "Initialization Failed!");
                 }
